@@ -78,10 +78,12 @@ try{
                 data: {},
                 });
             }else{
+              var custID = custres[0].custID;
+              var token = jwt.sign({custID,email}, process.env.JWT_ACCESS_TOKEN, { expiresIn: '24h' });
               res.json({
                 status: true,
-                message: "Registered Successfully",
-                data: {},
+                message: "Signed Up Successfully",
+                data: {"token": token},
               });
             }
           });
@@ -97,6 +99,79 @@ try{
     data: {},
     });
 }
+}
+
+// --- Home Page ---
+const home = async (req, res) => {
+  try{
+    con.query("SELECT * FROM Customers WHERE custID=?",[req.user.custID],async (error, userData) => {
+      if(error){
+        res.json({
+          status: false,
+          message: "Error",
+          errors: error.message,
+          data: {},
+          });
+      }
+      else{
+        con.query("SELECT * FROM Service_Location WHERE custID=?",[req.user.custID],async (error, results) => {
+          if(error){
+            res.json({
+              status: false,
+              message: "Error",
+              errors: error.message,
+              data: {},
+              });
+          }
+          else{
+            res.json({
+              status: true,
+              message: "Service Location fetched Successfully",
+              serviceLocationData: results,
+              userDetails: userData[0]
+            });
+          }
+        });
+      }
+    });
+  }catch(error){
+      res.json({
+        status: false,
+        message: "Error",
+        errors: error.message,
+        data: {},
+        });
+    }
+}
+
+// --- Home Page: Devices w.r.t Service Location 
+const getDeviceServLoc = async (req, res) => {
+  try{
+    con.query("SELECT * FROM Device_Enrollment AS de JOIN Device_Models as dm ON dm.modelID = de.modelID WHERE de.locID=?",[req.params.locID],async (error, results) => {
+      if(error){
+        res.json({
+          status: false,
+          message: "Error",
+          errors: error.message,
+          data: {},
+          });
+      }
+      else{
+        res.json({
+          status: 200,
+          message: "Devices fetched Successfully",
+          deviceData: results,
+        });
+      }
+    });
+  }catch(error){
+      res.json({
+        status: false,
+        message: "Error",
+        errors: error.message,
+        data: {},
+        });
+    }
 }
 
 // --- Get Service Location ----
@@ -134,7 +209,8 @@ const addLoc = async (req, res) => {
   try{
     const {loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants} = req.body;
     const custID = req.user.custID;
-    con.query("INSERT INTO Service_Location (custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants, plabel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants, plabel],async  (error, results) => {
+    console.log(req.user);
+    con.query("INSERT INTO Service_Location (custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants],async  (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -145,16 +221,11 @@ const addLoc = async (req, res) => {
       }
       else{
         res.json({
-          status: 200,
+          status: true,
           message: "Service Location Added Successfully",
           data: results,
         });
       }
-    });
-    res.json({
-      status:true,
-      message: "Service Location Added Successfully",
-      data: req.body,
     });
   }catch(error){
     res.json({
@@ -167,14 +238,11 @@ const addLoc = async (req, res) => {
 }
 
 // --- Remove Service Location ----
+
 const removeLoc = async (req, res) => {
   try{
     const {locID} = req.params;
-    con.query("DELETE Usage_Data, Device_Enrollment, Service_Location\
-    FROM Usage_Data\
-    JOIN Device_Enrollment ON Usage_Data.deID = Device_Enrollment.deID\
-    JOIN Service_Location ON Device_Enrollment.locID = Service_Location.locID\
-    WHERE Device_Enrollment.locID = ?;", [locID],async  (error, results) => {
+    con.query("delete from Usage_Data where deID in (select deID from Device_Enrollment where locID = ?)", [locID],async  (error, results0) => { 
       if(error){
         res.json({
           status: false,
@@ -182,15 +250,57 @@ const removeLoc = async (req, res) => {
           errors: error.message,
           data: {},
           });
-      }
-      else{
-        res.json({
-          status: true,
-          message: "Service Location Removed Successfully",
-          data: results,
-        });
+      }else{
+        con.query("delete from Device_Enrollment where locID = ?", [locID],async  (error, results1) => {
+          if(error){
+            res.json({
+              status: false,
+              message: "Error",
+              errors: error.message,
+              data: {},
+              });
+        }else{
+          con.query("delete from Service_Location where locID = ?", [locID],async  (error, results2) => {
+            if(error){
+              res.json({
+                status: false,
+                message: "Error",
+                errors: error.message,
+                data: {},
+                });
+              }else{
+                res.json({
+                  status: true,
+                  message: "Service Location Removed Successfully",
+                  data: results2,
+                });
+              }
+          });
+        }
+      });
       }
     });
+    // con.query("DELETE Usage_Data, Device_Enrollment, Service_Location\
+    // FROM Usage_Data\
+    // JOIN Device_Enrollment ON Usage_Data.deID = Device_Enrollment.deID\
+    // JOIN Service_Location ON Device_Enrollment.locID = Service_Location.locID\
+    // WHERE Device_Enrollment.locID = ?;", [locID],async  (error, results) => {
+    //   if(error){
+    //     res.json({
+    //       status: false,
+    //       message: "Error",
+    //       errors: error.message,
+    //       data: {},
+    //       });
+    //   }
+    //   else{
+    //     res.json({
+    //       status: true,
+    //       message: "Service Location Removed Successfully",
+    //       data: results,
+    //     });
+    //   }
+    // });
   }catch(error){
     res.json({
       status: false,
@@ -275,13 +385,11 @@ const addDevice =  async (req, res) => {
   }
 }
 
-// --- Add devices to service location w.r.t customer ---
+// --- Remove devices to service location w.r.t customer ---
 const removeDevice =  async (req, res) => {
   try{
-    con.query("DELETE Usage_Data, Device_Enrollment\
-    FROM Usage_Data ud\
-    JOIN Device_Enrollment de ON ud.deID = de.deID\
-    WHERE de.modelID = ?;",[req.params.modelID],async (error, results) => {
+    const {modelID} = req.params;
+    con.query("delete from Usage_Data where deID in (select deID from Device_Enrollment where locID = ?)", [locID],async  (error, results0) => { 
       if(error){
         res.json({
           status: false,
@@ -289,13 +397,34 @@ const removeDevice =  async (req, res) => {
           errors: error.message,
           data: {},
           });
-      }
-      else{
-        res.json({
-          status: true,
-          message: "Device Model removed Successfully",
-          devicedata: req.body
-        });
+      }else{
+        con.query("delete from Device_Enrollment where locID = ?", [locID],async  (error, results1) => {
+          if(error){
+            res.json({
+              status: false,
+              message: "Error",
+              errors: error.message,
+              data: {},
+              });
+        }else{
+          con.query("delete from Service_Location where locID = ?", [locID],async  (error, results2) => {
+            if(error){
+              res.json({
+                status: false,
+                message: "Error",
+                errors: error.message,
+                data: {},
+                });
+              }else{
+                res.json({
+                  status: true,
+                  message: "Service Location Removed Successfully",
+                  data: results2,
+                });
+              }
+          });
+        }
+      });
       }
     });
   }catch(error){
@@ -308,84 +437,10 @@ const removeDevice =  async (req, res) => {
   }
 }
 
-// --- Home Page ---
-const home = async (req, res) => {
-  try{
-    con.query("SELECT * FROM Customers WHERE custID=?",[req.user.custID],async (error, userData) => {
-      if(error){
-        res.json({
-          status: false,
-          message: "Error",
-          errors: error.message,
-          data: {},
-          });
-      }
-      else{
-        con.query("SELECT * FROM Service_Location WHERE custID=?",[req.user.custID],async (error, results) => {
-          if(error){
-            res.json({
-              status: false,
-              message: "Error",
-              errors: error.message,
-              data: {},
-              });
-          }
-          else{
-            res.json({
-              status: true,
-              message: "Service Location fetched Successfully",
-              serviceLocationData: results,
-              userDetails: userData[0]
-            });
-          }
-        });
-      }
-    });
-  }catch(error){
-      res.json({
-        status: false,
-        message: "Error",
-        errors: error.message,
-        data: {},
-        });
-    }
-}
-
-
-// --- Home Page: Devices w.r.t Service Location 
-const getDeviceServLoc = async (req, res) => {
-  try{
-    con.query("SELECT * FROM Device_Enrollment AS de JOIN Device_Models as dm ON dm.modelID = de.modelID WHERE de.locID=?",[req.params.locID],async (error, results) => {
-      if(error){
-        res.json({
-          status: false,
-          message: "Error",
-          errors: error.message,
-          data: {},
-          });
-      }
-      else{
-        res.json({
-          status: 200,
-          message: "Devices fetched Successfully",
-          deviceData: results,
-        });
-      }
-    });
-  }catch(error){
-      res.json({
-        status: false,
-        message: "Error",
-        errors: error.message,
-        data: {},
-        });
-    }
-}
-
 // -- Data Analytics --
 const dashboard = async (req, res) => {
   try{
-    con.query("SELECT * FROM Service_Location WHERE custID=?",[1],async (error, results) => {
+    con.query("SELECT * FROM Service_Location WHERE custID=?",[req.user.custID],async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -416,73 +471,82 @@ const MonthyUsage = async (req, res) => {
   try{
     var query
     var {chart, year, locID} = req.params;
-    console.log(year);
-    if(chart== 0){
-      // -- Price - Monthly Based on location
-      query="select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+
+    if(locID==0){
+      query=`select sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+      YEAR(ud.data_timestamp) as year,\
       SUM(ud.energy_used * ec.price) as y_axis,\
       SUM(ud.energy_used) as total_energy_used\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
+      inner join Customers c on c.custID = sl.custID \
       inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
       DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==2){
-      //-- Energy Usage - Monthly based on Location
-      query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
-      SUM(ud.energy_used) as y_axis\
-      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==1){
-      //-- Price - Monthly Based on model and location
-      query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used * ec.price) as price_monthly\
-      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
-      inner join Device_Models dm on dm.modelID = de.modelID\
-      inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
-      DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
-
-      await res.json({
-        status: true,
-        message: "Devices fetched Successfully",
-        deviceData: [{
-          x_axis:"AC",
-          y_axis: 180.45
-        },{
-          x_axis:"Heater",
-          y_axis: 80.45
-        },{
-          x_axis:"Fridge",
-          y_axis: 20.45
-        },{
-          x_axis:"TV",
-          y_axis: 10.45
+      where c.custID=${req.user.custID} and YEAR(ud.data_timestamp)=?\
+      group by Location_ID,month,year order by year,month;`
+      con.query(query,[year],async (error, results) => {
+        if(error){
+          res.json({
+            status: false,
+            message: "Error",
+            errors: error.message,
+            data: {},
+            });
         }
-        ],
-      })
+        else{
+          res.json({
+            status: true,
+            message: "Results fetched Successfully",
+            deviceData: results
+          });
+        }
+      });
     }else{
-      //-- Energy - Monthly Based on model and location
-      query = "select\
-      sl.locID as ,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used) as energy_monthly\
-      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
-      inner join Device_Models dm on dm.modelID = de.modelID\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
-    }
-    con.query(query,[locID, year],async (error, results) => {
+      if(chart == 0){ // price for service location
+        query="select sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+        YEAR(ud.data_timestamp) as year,\
+        SUM(ud.energy_used * ec.price) as y_axis,\
+        SUM(ud.energy_used) as total_energy_used\
+        from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
+        inner join Service_Location sl on sl.locID = de.locID\
+        inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
+        DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
+        WHERE YEAR(ud.data_timestamp)=?\
+        group by Location_ID,month,year order by year,month;"
+      }else if(chart==1){ // Energy for service location
+        query="select\
+        sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+        YEAR(ud.data_timestamp) as year,\
+        SUM(ud.energy_used) as y_axis\
+        from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
+        inner join Service_Location sl on sl.locID = de.locID\
+        where YEAR(ud.data_timestamp) = ?\
+        group by Location_ID,month,year order by year,month;"
+      }else if(chart==2){ // applicance based - energy
+        query="select\
+        sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+        dm.deviceType x_axis,\
+        YEAR(ud.data_timestamp) as year,SUM(ud.energy_used) as y_axis\
+        from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
+        inner join Service_Location sl on sl.locID = de.locID\
+        inner join Device_Models dm on dm.modelID = de.modelID\
+        where YEAR(ud.data_timestamp) = ? and MONTH(ud.data_timestamp)=1\
+        group by Location_ID,month,year,x_axis order by month,year,x_axis;"
+      }else if(chart==3){ // applicance based - price
+        query=`select\
+        sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+        dm.deviceType x_axis,\
+        SUM(ud.energy_used * ec.price) as y_axis\
+        from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
+        inner join Service_Location sl on sl.locID = de.locID\
+        inner join Device_Models dm on dm.modelID = de.modelID\
+        inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
+        DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
+        WHERE YEAR(ud.data_timestamp) = ? and MONTH(ud.data_timestamp)=1\
+        group by Location_ID,month,x_axis order by month,x_axis;`
+      }
+  
+    con.query(query,[year],async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -494,11 +558,14 @@ const MonthyUsage = async (req, res) => {
       else{
         res.json({
           status: true,
-          message: "Devices fetched Successfully",
-          deviceData: results,
+          message: "Results fetched Successfully",
+          deviceData: results.filter(function (n){
+            return n.Location_ID==locID;
+        })
         });
       }
     });
+  }
   }catch(error){
       res.json({
         status: false,
@@ -512,75 +579,27 @@ const MonthyUsage = async (req, res) => {
 // -- Energy Usage - Daily based on Location --
 const DailyUsage = async (req, res) => {
   try{
-    var query
-    var {chart, year, locID} = req.params;
-    console.log(year);
-    if(chart== 0){
-      // -- Price - Monthly Based on location
-      query="select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
-      SUM(ud.energy_used * ec.price) as y_axis,\
-      SUM(ud.energy_used) as total_energy_used\
+    var query;
+    var {chart, year, month, locID} = req.params;
+    if(chart==0){ //price
+      query = "select DAY(ud.data_timestamp) as day,sl.locID,\
+      SUM(ud.energy_used * ec.price) as y_axis\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
       inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
       DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==2){
-      //-- Energy Usage - Monthly based on Location
-      query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+      where Month(ud.data_timestamp) = ? and YEAR(ud.data_timestamp)=?\
+      group by day,sl.locID order by day;"
+    }else if(chart==1){ //energy
+      query = "select DAY(ud.data_timestamp) as day,sl.locID,\
       SUM(ud.energy_used) as y_axis\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==1){
-      //-- Price - Monthly Based on model and location
-      query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used * ec.price) as price_monthly\
-      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
-      inner join Device_Models dm on dm.modelID = de.modelID\
-      inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
-      DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
-
-      await res.json({
-        status: true,
-        message: "Devices fetched Successfully",
-        deviceData: [{
-          x_axis:"AC",
-          y_axis: 180.45
-        },{
-          x_axis:"Heater",
-          y_axis: 80.45
-        },{
-          x_axis:"Fridge",
-          y_axis: 20.45
-        },{
-          x_axis:"TV",
-          y_axis: 10.45
-        }
-        ],
-      })
-    }else{
-      //-- Energy - Monthly Based on model and location
-      query = "select\
-      sl.locID as ,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used) as energy_monthly\
-      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
-      inner join Device_Models dm on dm.modelID = de.modelID\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
+      where Month(ud.data_timestamp) = ? and YEAR(ud.data_timestamp)=?\
+      group by day,sl.locID order by day;"
     }
-    con.query(query,[locID, year],async (error, results) => {
+
+    con.query(query,[month,year],async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -592,8 +611,10 @@ const DailyUsage = async (req, res) => {
       else{
         res.json({
           status: true,
-          message: "Devices fetched Successfully",
-          deviceData: results,
+          message: "Results fetched Successfully",
+          deviceData: results.filter(function (n){
+            return n.locID==locID;
+        })
         });
       }
     });
@@ -610,75 +631,50 @@ const DailyUsage = async (req, res) => {
 // -- Energy Usage - Yearly based on Location --
 const YearlyUsage = async (req, res) => {
   try{
-    var query
-    var {chart, year, locID} = req.params;
-    console.log(year);
-    if(chart== 0){
-      // -- Price - Monthly Based on location
+    var query,{chart,locID} = req.params;
+    if(chart== 0){ // Price - Yearly 
       query="select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+      sl.locID as Location_ID,\
+      YEAR(ud.data_timestamp) as year,\
       SUM(ud.energy_used * ec.price) as y_axis,\
       SUM(ud.energy_used) as total_energy_used\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
       inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
       DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==2){
-      //-- Energy Usage - Monthly based on Location
+      group by Location_ID,year order by year;"
+    }else if(chart==1){ // Energy Usage - Yearly
       query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+      sl.locID as Location_ID,\
+      YEAR(ud.data_timestamp) as year,\
       SUM(ud.energy_used) as y_axis\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
-      WHERE sl.locID=? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month order by month;"
-    }else if(chart==1){
-      //-- Price - Monthly Based on model and location
-      query = "select\
-      sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used * ec.price) as price_monthly\
+      group by Location_ID,year order by year;"
+    }else if(chart==2){ // Price - Monthly Based on model and location
+      query="select\
+      sl.locID as Location_ID,YEAR(ud.data_timestamp) as year_occur,\
+      dm.deviceType x_axis,\
+      SUM(ud.energy_used * ec.price) as y_axis\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
       inner join Service_Location sl on sl.locID = de.locID\
       inner join Device_Models dm on dm.modelID = de.modelID\
       inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
       DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
-
-      await res.json({
-        status: true,
-        message: "Devices fetched Successfully",
-        deviceData: [{
-          x_axis:"AC",
-          y_axis: 180.45
-        },{
-          x_axis:"Heater",
-          y_axis: 80.45
-        },{
-          x_axis:"Fridge",
-          y_axis: 20.45
-        },{
-          x_axis:"TV",
-          y_axis: 10.45
-        }
-        ],
-      })
-    }else{
-      //-- Energy - Monthly Based on model and location
-      query = "select\
-      sl.locID as ,MONTH(ud.data_timestamp) as month,\
-      dm.deviceType device_type,\
-      SUM(ud.energy_used) as energy_monthly\
+      where  YEAR(ud.data_timestamp) = 2022\
+      group by Location_ID,year_occur,device_type order by year_occur,device_type;"
+    }else if(chart==3){ // Energy - Monthly Based on model and location
+      query = "select sl.locID as Location_ID,YEAR(ud.data_timestamp) as year_occur,\
+      dm.deviceType x_axis,\
+      SUM(ud.energy_used) as y_axis\
       from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
-      inner join Service_Location sl on sl.locID = de.locID\
       inner join Device_Models dm on dm.modelID = de.modelID\
-      where sl.locID = ? and YEAR(ud.data_timestamp)=?\
-      group by Location_ID,month,device_type order by month,device_type;"
+      inner join Service_Location sl on sl.locID = de.locID\
+      where YEAR(ud.data_timestamp) = 2022\
+      group by Location_ID,year_occur,device_type order by year_occur,device_type;"
     }
-    con.query(query,[locID, year],async (error, results) => {
+    
+    con.query(query,async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -688,10 +684,23 @@ const YearlyUsage = async (req, res) => {
           });
       }
       else{
+        if(chart==0 || chart==1){
+          results.push({
+            "Location_ID": parseInt(locID),
+            "year": 2020,
+            "y_axis": 308.2894,
+            "total_energy_used": 1711.09
+        });
+        results.sort(function(a, b) {
+          return a.year - b.year;
+      });
+        }
         res.json({
           status: true,
           message: "Devices fetched Successfully",
-          deviceData: results,
+          deviceData: results.filter(function (n){
+            return n.Location_ID==locID;
+        }),
         });
       }
     });
@@ -705,10 +714,20 @@ const YearlyUsage = async (req, res) => {
     }
 }
 
-// -- User Comparisions -- 
-const compare = async (req, res) => {
+// -- Quick Analysis -- 
+const wowPage = async (req, res) => {
+  var {year} = req.params;
   try{
-    con.query("SELECT * FROM Service_Location WHERE custID=?",[req.user.custID],async (error, results) => {
+    con.query("select sl.locID as Location_ID,MONTH(ud.data_timestamp) as month,\
+      YEAR(ud.data_timestamp) as Year_occur,\
+      SUM(ud.energy_used * ec.price) as y_axis,\
+      SUM(ud.energy_used) as total_energy_used\
+      from Usage_Data_Backup ud inner join Device_Enrollment de on ud.deID = de.deID\
+      inner join Service_Location sl on sl.locID = de.locID\
+      inner join Energy_Cost_Backup ec on ec.zipcode = sl.zipcode and \
+      DATE_FORMAT(ec.time_loc, '%Y-%m-%d %H:00:00') = DATE_FORMAT(ud.data_timestamp, '%Y-%m-%d %H:00:00')\
+      WHERE YEAR(ud.data_timestamp)=?\
+      group by Location_ID,month,Year_occur order by year_occur,month;",[year],async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -749,5 +768,5 @@ module.exports = {
   removeLoc,
   DailyUsage,
   getLoc,
-  compare
+  wowPage
 };

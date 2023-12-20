@@ -6,31 +6,30 @@ const userController = require('../controllers/userController');
 
 // --- Login/Register ---
 router.post('/login',userController.login);
-router.post('/signup', userController.signup);
+router.post('/register', userController.signup);
 
 // --- Home Page ---
-router.get('/home', userController.home);
-router.get('/home/:locID', userController.getDeviceServLoc);
+router.get('/home', authenticator, userController.home);
+router.get('/home/:locID', authenticator, userController.getDeviceServLoc);
 
 // --- Service Location ---
-router.get('/serviceloc', userController.getLoc);
-router.post('/serviceloc', userController.addLoc);
-router.delete('/serviceloc/:locID', userController.removeLoc);
+router.get('/serviceloc', authenticator,userController.getLoc);
+router.post('/serviceloc', authenticator,userController.addLoc);
+router.delete('/serviceloc/:locID', authenticator, userController.removeLoc);
 
 // --- Devices ---
 router.get('/devices', authenticator, userController.getDevice);
 router.post('/devices', authenticator, userController.addDevice);
-router.delete('/devices/:modelID', authenticator,userController.removeDevice);
-// router.post('/isValidUser', userController.isValidUser);
+router.delete('/devices/:modelID', authenticator, userController.removeDevice);
 
 // --- Data Analytics ---
-router.get('/dashboard',userController.dashboard);
-router.get('/mu/:chart/:locID/:year', userController.MonthyUsage);
-router.get('/du/:chart/:locID/:year/:month', userController.DailyUsage);
-router.get('/yu/:chart/:locID/:year', userController.YearlyUsage);
+router.get('/dashboard',authenticator,userController.dashboard);
+router.get('/yu/:chart/:locID',authenticator,userController.YearlyUsage);
+router.get('/mu/:chart/:locID/:year/', authenticator, userController.MonthyUsage);
+router.get('/du/:chart/:locID/:year/:month', authenticator, userController.DailyUsage);
 
 // --- Comparision ---
-router.get('/compare',userController.compare);
+router.get('/wowpage',userController.wowPage);
 
 // Dashbpard 
 /*
@@ -38,5 +37,9 @@ User 1:
   -- Monthly Usage (All 4 - 2021 amd 2022)
   -- Yearly Usage (All 4 - 2021 amd 2022)
   -- Daily Usage (All 4 - 2021 amd 2022)
+
+  Price/Energy (5*2)
+  -- Service Location Based - Yearly/Monthly/Daily
+  -- Appliance Based - Yearly/Monthly
 */
 module.exports = router;
