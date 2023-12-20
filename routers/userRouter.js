@@ -20,7 +20,7 @@ router.delete('/serviceloc/:locID', authenticator, userController.removeLoc);
 // --- Devices ---
 router.get('/devices', authenticator, userController.getDevice);
 router.post('/devices', authenticator, userController.addDevice);
-router.delete('/devices/:modelID', authenticator, userController.removeDevice);
+router.delete('/devices/:deID', authenticator, userController.removeDevice);
 
 // --- Data Analytics ---
 router.get('/dashboard',authenticator,userController.dashboard);
@@ -29,7 +29,8 @@ router.get('/mu/:chart/:locID/:year/', authenticator, userController.MonthyUsage
 router.get('/du/:chart/:locID/:year/:month', authenticator, userController.DailyUsage);
 
 // --- Comparision ---
-router.get('/wowpage',userController.wowPage);
+router.post('/wowpage',userController.wowPage);
+router.post('/zipcodemetrics',userController.zipCodeMetrics);
 
 // Dashbpard 
 /*
