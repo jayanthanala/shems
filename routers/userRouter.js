@@ -39,7 +39,7 @@ User 1:
   -- Yearly Usage (All 4 - 2021 amd 2022)
   -- Daily Usage (All 4 - 2021 amd 2022)
 
-  Price/Energy (5*2)
+  Price/Energy (5*2) - 10 graphs + 2
   -- Service Location Based - Yearly/Monthly/Daily
   -- Appliance Based - Yearly/Monthly
 */

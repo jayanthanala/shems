@@ -209,7 +209,6 @@ const addLoc = async (req, res) => {
   try{
     const {loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants} = req.body;
     const custID = req.user.custID;
-    console.log(req.user);
     con.query("INSERT INTO Service_Location (custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [custID, loc_type, address_line, city, state, zipcode, date_tookover, area, num_bed, num_occupants],async  (error, results) => {
       if(error){
         res.json({
@@ -356,7 +355,6 @@ const getDevice =  async (req, res) => {
 const addDevice =  async (req, res) => {
   try{
     const {modelID, locID} = req.body;
-    console.log(req.body);
     con.query("INSERT INTO Device_Enrollment (modelID, locID) VALUES (?, ?)", [modelID, locID],async  (error, results) => {
       if(error){
         res.json({
@@ -388,7 +386,6 @@ const addDevice =  async (req, res) => {
 const removeDevice =  async (req, res) => {
   try{
     const {deID} = req.params;
-    console.log(deID)
     con.query("delete from Usage_Data where deID=?", [deID],async  (error, results0) => { 
       if(error){
         res.json({
@@ -743,10 +740,17 @@ const wowPage = async (req, res) => {
           data: {},
           });
       }else{
+        var diff = results[0].diff;
+        if(diff<0){
+          var message = "Your "+results[0].device_type+"'s energy consumption has increased by "+Math.abs(diff)+" units from last month"
+        }else{
+          var message = "Yay! energy consumption has decreased by "+Math.abs(diff)+" units from last month"
+        }
         res.json({
           status: true,
           message: "Results",
-          data: results
+          data: results,
+          message: message
         });
       }
     });
@@ -764,7 +768,7 @@ const zipCodeMetrics = async (req, res) => {
   try{
     var {locID} = req.body;
     var query="with Ids as (Select locID from Service_Location where zipcode = (select zipcode from Service_Location\
-      where locID = ?)),\
+      where locID = 1)),\
       datas as( select sum(ud.energy_used) as total_energy,\
       month(ud.data_timestamp) as month_occur,\
       sl.locID as locID,\
@@ -774,12 +778,11 @@ const zipCodeMetrics = async (req, res) => {
      inner join Service_Location sl on sl.locID = ids.locID\
      where  YEAR(ud.data_timestamp) = 2022 and month(ud.data_timestamp) = MONTH(NOW() - INTERVAL 1 MONTH) \
      group by sl.locID,month_occur,zipcode order by locID,month_occur)\
-     select d1.locID as loc1,d1.total_energy as loc_energy,sum(d2.total_energy) as total_energy,\
-     d1.total_energy * 100 /sum(d2.total_energy)  as percent_used\
+     select d1.locID as loc1,d1.total_energy as Your_energy_consumption,sum(d2.total_energy) as Total_energy_consumption_in_your_Area,\
+     d1.total_energy * 100 /sum(d2.total_energy)  as Your_Usage\
      from datas d1\
       join datas d2 \
-     where d1.locID = ? group by d1.locID,loc_energy";
-
+     where d1.locID = ? group by d1.locID,Your_energy_consumption";
      con.query(query,[locID],async (error, results) => {
       if(error){
         res.json({
