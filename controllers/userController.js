@@ -177,7 +177,7 @@ const getDeviceServLoc = async (req, res) => {
 // --- Get Service Location ----
 const getLoc = async (req, res) => {
   try{
-    con.query("SELECT * FROM Service_Location WHERE custID=?",[req.user.custID],async (error, results) => {
+    con.query("SELECT * FROM Service_Location WHERE custID=?",[1],async (error, results) => {
       if(error){
         res.json({
           status: false,
@@ -744,7 +744,7 @@ const wowPage = async (req, res) => {
         if(diff<0){
           var message = "Your "+results[0].device_type+"'s energy consumption has increased by "+Math.abs(diff)+" units from last month"
         }else{
-          var message = "Yay! energy consumption has decreased by "+Math.abs(diff)+" units from last month"
+          var message = "Yay! energy consumption has decreased by "+Math.abs(diff)+" units from last month 🎉"
         }
         res.json({
           status: true,

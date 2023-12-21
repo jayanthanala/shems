@@ -13,7 +13,7 @@ router.get('/home', authenticator, userController.home);
 router.get('/home/:locID', authenticator, userController.getDeviceServLoc);
 
 // --- Service Location ---
-router.get('/serviceloc', authenticator,userController.getLoc);
+router.get('/serviceloc',userController.getLoc);
 router.post('/serviceloc', authenticator,userController.addLoc);
 router.delete('/serviceloc/:locID', authenticator, userController.removeLoc);
 
